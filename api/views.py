@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
-from api.serializer import UserSerializer
+from api.serializer import TopicSerializer, UserSerializer
 from .models import Category, Topic, Comment
 from django.views.decorators.csrf import csrf_exempt
 
@@ -17,25 +17,42 @@ class UserViewset(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     queryset = get_user_model().objects.all()
 
-@login_required
 @csrf_exempt
 @api_view(['POST', 'GET'])
 def create_topic(request):
     if request.method == 'POST':
         try:
-            title = request.POST['title']
+            topicName = request.POST['topicName']
             content = request.POST['content']
         except MultiValueDictKeyError as e:
             return Response({"error": str(e)})
         category_id = request.POST['category']
         category = get_object_or_404(Category, id=category_id)
-        Topic.objects.create(title=title, content=content, category=category, user=request.user)
+        Topic.objects.create(topicName=topicName, content=content, category=category, user=request.user)
         return Response({"message": "Topic created successfully!"})
     else:
         categories = Category.objects.all().values()
         return Response({'categories': list(categories)})
 
-@api_view(['GET'])
+@csrf_exempt
+@api_view(['POST'])
+def add_topic(request):
+    if request.method == 'POST':
+        category_name = request.data.get('categoryName')
+        category = get_object_or_404(Category, categoryName=category_name)
+
+        topic_data = request.data.copy()
+        topic_data['categoryName'] = category.id
+        serializer = TopicSerializer(data=topic_data)
+        
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response({"message": "Topic created successfully!"}, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'POST'])
 def view_topics(request):
     topics = Topic.objects.all().values()
     return Response({'topics': list(topics)})
@@ -61,13 +78,7 @@ def admin_add_category(request):
     else:
         return Response({"message": "Unable to add category."})
 
-# @api_view(['GET'])
-# def view_category(request):
-#     category_id = request.POST['category']
-#     Category = get_object_or_404(Category, id=category_id)
-#     category_info = {"name"}
-#     return Response({'category': category_info})
-@login_required
+# @login_required
 @api_view(['GET'])
 def view_category(request):
     categories = Category.objects.all().values()
@@ -76,7 +87,7 @@ def view_category(request):
 @api_view(['GET'])
 def admin_view_topic(request, topic_id):
     topic = get_object_or_404(Topic, id=topic_id)
-    topic_info = {"title": topic.title, "content": topic.content, "category": topic.category.name, "user": topic.user.username}
+    topic_info = {"topicName": topic.topicName, "content": topic.content, "category": topic.category.name, "user": topic.user.username}
     return Response({'topic': topic_info})
 
 @api_view(['GET'])
