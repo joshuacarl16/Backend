@@ -43,10 +43,10 @@ class UserSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ['categoryName']
+        fields = ['id', 'categoryName']
 
 class TopicSerializer(serializers.ModelSerializer):
-    categoryName = serializers.StringRelatedField()
+    categoryName = CategorySerializer(write_only=True)
     
     class Meta:
         model = Topic
